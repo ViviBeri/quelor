@@ -38,4 +38,4 @@ triage it (label, accept, decline, or ask for more information) within
 ## Pull requests
 
 Open a draft PR early. Fill in the template. A maintainer reviews; CI must pass.
-Good first issues are listed in `docs/good-first-issues.md`.
+Good first issues are listed in [docs/good-first-issues.md](docs/good-first-issues.md).
