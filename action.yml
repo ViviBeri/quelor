@@ -1,0 +1,90 @@
+name: 'Quelor admit'
+description: 'Admit-before-start gate: check a rate-limit budget before an API-heavy step runs, and defer instead of going red.'
+author: 'ARAMAI'
+branding:
+  icon: shield
+  color: blue
+inputs:
+  resource:
+    description: 'Resource to check (github_api, github_search, github_graphql).'
+    required: false
+    default: 'github_api'
+  need:
+    description: 'Units of the resource the next step expects to spend.'
+    required: true
+  optional:
+    description: 'If "true", an insufficient budget yields verdict "defer" (exit 42) instead of "degraded".'
+    required: false
+    default: 'false'
+  token:
+    description: 'Token used to read GitHub /rate_limit.'
+    required: false
+    default: ${{ github.token }}
+  version:
+    description: 'Quelor release to install (for example v0.1.0 or latest).'
+    required: false
+    default: 'latest'
+  fail-on-defer:
+    description: 'Fail the step when the verdict is not admit.'
+    required: false
+    default: 'false'
+outputs:
+  verdict:
+    description: 'admit, defer or degraded.'
+    value: ${{ steps.admit.outputs.verdict }}
+  remaining:
+    description: 'Remaining units reported by the resource (empty when unknown).'
+    value: ${{ steps.admit.outputs.remaining }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Install quelor
+      shell: bash
+      env:
+        QUELOR_VERSION: ${{ inputs.version }}
+        RUNNER_OS_NAME: ${{ runner.os }}
+        RUNNER_ARCH_NAME: ${{ runner.arch }}
+      run: |
+        set -u
+        case "$RUNNER_OS_NAME" in Linux) os=linux;; macOS) os=darwin;; Windows) os=windows;; *) os=linux;; esac
+        case "$RUNNER_ARCH_NAME" in X64) arch=amd64;; ARM64) arch=arm64;; *) arch=amd64;; esac
+        dest="${RUNNER_TEMP:-/tmp}/quelor-bin"
+        mkdir -p "$dest"
+        ext=tar.gz; [ "$os" = windows ] && ext=zip
+        if [ "$QUELOR_VERSION" = latest ]; then
+          url="https://github.com/coherera/quelor/releases/latest/download/quelor_${os}_${arch}.${ext}"
+        else
+          url="https://github.com/coherera/quelor/releases/download/${QUELOR_VERSION}/quelor_${os}_${arch}.${ext}"
+        fi
+        ok=0
+        if curl -fsSL "$url" -o "$dest/quelor.$ext"; then
+          if [ "$ext" = zip ]; then unzip -qo "$dest/quelor.$ext" -d "$dest" && ok=1; else tar -xzf "$dest/quelor.$ext" -C "$dest" && ok=1; fi
+        fi
+        if [ "$ok" != 1 ] || { [ ! -x "$dest/quelor" ] && [ ! -x "$dest/quelor.exe" ]; }; then
+          echo "release binary unavailable; falling back to go install" >&2
+          if ! command -v go >/dev/null 2>&1; then echo "go toolchain not found for fallback" >&2; exit 1; fi
+          ref="$QUELOR_VERSION"; [ "$ref" = latest ] && ref=latest
+          GOBIN="$dest" go install "github.com/coherera/quelor/cmd/quelor@${ref}"
+        fi
+        echo "$dest" >> "$GITHUB_PATH"
+    - name: Admit
+      id: admit
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+        Q_RESOURCE: ${{ inputs.resource }}
+        Q_NEED: ${{ inputs.need }}
+        Q_OPTIONAL: ${{ inputs.optional }}
+        Q_FAIL: ${{ inputs.fail-on-defer }}
+      run: |
+        args=(admit --resource "$Q_RESOURCE" --need "$Q_NEED")
+        [ "$Q_OPTIONAL" = "true" ] && args+=(--optional)
+        set +e
+        quelor "${args[@]}"
+        code=$?
+        set -e
+        case "$code" in
+          0)  ;;
+          42|43) [ "$Q_FAIL" = "true" ] && exit "$code" ;;
+          *)  exit "$code" ;;
+        esac

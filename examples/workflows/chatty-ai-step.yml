@@ -1,0 +1,32 @@
+# Reference workflow: gate an API-heavy step (an AI code-review pass that makes
+# many GitHub API calls) behind a Quelor admission check. When the budget is
+# short the step is skipped and the job stays green instead of failing on a
+# rate limit and paging someone.
+name: chatty-ai-step
+on:
+  pull_request:
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Admit before start
+        id: gate
+        uses: coherera/quelor@v0
+        with:
+          resource: github_api
+          need: '300'        # calls the next step expects to make
+          optional: 'true'   # defer (skip) rather than fail when short
+
+      - name: AI review pass (API heavy)
+        if: steps.gate.outputs.verdict == 'admit'
+        run: ./scripts/ai-review.sh   # your step
+
+      - name: Note the deferral
+        if: steps.gate.outputs.verdict != 'admit'
+        run: |
+          echo "Skipped AI review: verdict=${{ steps.gate.outputs.verdict }} remaining=${{ steps.gate.outputs.remaining }}" >> "$GITHUB_STEP_SUMMARY"

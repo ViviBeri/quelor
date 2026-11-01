@@ -1,0 +1,8 @@
+/BUILD-REPORT.md
+/dist/
+*.test
+*.out
+.env
+.DS_Store
+/quelor
+/quelord

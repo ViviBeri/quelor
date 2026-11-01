@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quelor.dev/schema/trace.v1.json",
+  "title": "Quelor decision trace record",
+  "description": "One JSON object per line in a Quelor decision trace (trace.v1).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "ts",
+    "op",
+    "decision_ref"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "trace.v1"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "op": {
+      "type": "string",
+      "enum": ["acquire", "renew", "settle", "expire", "observe"]
+    },
+    "decision_ref": {
+      "type": "string"
+    },
+    "trace_id": {
+      "type": "string"
+    },
+    "envelope_hash": {
+      "type": "string"
+    },
+    "envelope": {
+      "$ref": "#/$defs/envelope"
+    },
+    "holder_id": {
+      "type": "string"
+    },
+    "tenant_id": {
+      "type": "string"
+    },
+    "lease_id": {
+      "type": "string"
+    },
+    "cell": {
+      "type": "string"
+    },
+    "verdict": {
+      "$ref": "#/$defs/verdict"
+    },
+    "readings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/reading"
+      }
+    },
+    "ruleset_id": {
+      "type": "string"
+    },
+    "ruleset_hash": {
+      "type": "string"
+    },
+    "decider_id": {
+      "type": "string"
+    },
+    "rule_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "decider_status": {
+      "type": "string",
+      "enum": ["answered", "abstained", "unavailable", "killed", "none"]
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["log-only", "advise", "enforce"]
+    },
+    "stamps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "directive_signer": {
+      "type": "string"
+    },
+    "declared": {
+      "$ref": "#/$defs/quantityMap"
+    },
+    "consumed": {
+      "$ref": "#/$defs/quantityMap"
+    },
+    "outcome": {
+      "$ref": "#/$defs/outcome"
+    },
+    "latency_ms": {
+      "type": "number"
+    }
+  },
+  "$defs": {
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "unit_id": {"type": "string"},
+        "tenant_id": {"type": "string"},
+        "holder_id": {"type": "string"},
+        "demands": {"$ref": "#/$defs/quantityMap"},
+        "affinity_key": {"type": "string"},
+        "coalesce_key": {"type": "string"},
+        "coalesce_policy": {"type": "string"},
+        "generation": {"type": "integer"},
+        "priority": {"type": "string"},
+        "deadline": {"type": "string", "format": "date-time"}
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["ADMIT", "DEFER", "SHED", "DENY"]
+        },
+        "reason": {"type": "string"},
+        "wake_at": {"type": "string", "format": "date-time"},
+        "wake_token": {"type": "string"},
+        "hibernate": {"type": "boolean"},
+        "stamps": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "reading": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "resource": {"type": "string"},
+        "available": {"type": "integer"},
+        "capacity": {"type": "integer"},
+        "known": {"type": "boolean"},
+        "stale": {"type": "boolean"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "age_ms": {"type": "integer"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "step": {"type": "string"},
+        "tier": {"type": "string"},
+        "evidence_class": {"type": "string"}
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "resource-exhausted",
+            "dependency-unavailable",
+            "flaky",
+            "real-defect",
+            "unknown"
+          ]
+        },
+        "exit_code": {"type": "integer"},
+        "http_status": {"type": "integer"},
+        "log_excerpt": {"type": "string"},
+        "failed": {"type": "boolean"}
+      }
+    },
+    "quantityMap": {
+      "type": "object",
+      "additionalProperties": {"type": "integer"}
+    }
+  }
+}

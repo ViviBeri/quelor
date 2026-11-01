@@ -1,0 +1,268 @@
+[
+ {
+  "name": "installation rate limit",
+  "log": "HttpError: API rate limit exceeded for installation. If you reach out to GitHub Support for help, please include the request ID XXXX:XXXX:XXXXXX",
+  "want_class": "resource-exhausted",
+  "want_rule": "gha-rate-limit"
+ },
+ {
+  "name": "rate limit, client wording",
+  "log": "gh: HTTP 403: rate limit exceeded (https://api.github.com/graphql)",
+  "want_class": "resource-exhausted",
+  "want_rule": "gha-rate-limit-text"
+ },
+ {
+  "name": "bare 429 in a client log",
+  "log": "upsert failed: HTTP=429 retry-after unset",
+  "want_class": "resource-exhausted",
+  "want_rule": "gha-rate-limit-text"
+ },
+ {
+  "name": "budget wall, job refused before step 1",
+  "log": "The job was not started because an Actions budget is preventing further use.",
+  "want_class": "resource-exhausted",
+  "want_rule": "gha-budget-wall"
+ },
+ {
+  "name": "spending limit wording",
+  "log": "The job was not started because recent account payments have failed or your spending limit needs to be increased.",
+  "want_class": "resource-exhausted",
+  "want_rule": "gha-budget-wall"
+ },
+ {
+  "name": "artifact storage quota",
+  "log": "Error: Failed to CreateArtifact: Artifact storage quota has been hit. Unable to upload any new artifacts.",
+  "want_class": "resource-exhausted",
+  "want_rule": "gha-quota"
+ },
+ {
+  "name": "disk full",
+  "log": "tar: write error: No space left on device",
+  "want_class": "resource-exhausted",
+  "want_rule": "gha-quota"
+ },
+ {
+  "name": "job time limit",
+  "log": "The job running on runner Hosted Agent has exceeded the maximum execution time of 360 minutes.",
+  "want_class": "resource-exhausted",
+  "want_rule": "gha-wall-clock"
+ },
+ {
+  "name": "step killed at timeout wrapper",
+  "log": "Error: Process completed with exit code 124.",
+  "want_class": "resource-exhausted",
+  "want_rule": "gha-wall-clock"
+ },
+ {
+  "name": "node heap exhausted",
+  "exit_code": 134,
+  "log": "FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory",
+  "want_class": "resource-exhausted",
+  "want_rule": "gha-oom"
+ },
+ {
+  "name": "oom kill by exit code",
+  "exit_code": 137,
+  "log": "Killed",
+  "want_class": "resource-exhausted",
+  "want_rule": "gha-oom"
+ },
+ {
+  "name": "upstream 503 in a vendor cli",
+  "log": "Error: failed to get organization (status 503)",
+  "want_class": "dependency-unavailable",
+  "want_rule": "gha-upstream-5xx"
+ },
+ {
+  "name": "python http error 500",
+  "log": "post failed: HTTPError: HTTP Error 500: Internal Server Error",
+  "want_class": "dependency-unavailable",
+  "want_rule": "gha-upstream-5xx"
+ },
+ {
+  "name": "graphql 502",
+  "log": "FAIL-CLOSED: could not list open items: HTTP 502 (graphql)",
+  "want_class": "dependency-unavailable",
+  "want_rule": "gha-upstream-5xx"
+ },
+ {
+  "name": "python timeout",
+  "log": "TimeoutError: The read operation timed out",
+  "want_class": "dependency-unavailable",
+  "want_rule": "gha-timeout"
+ },
+ {
+  "name": "query timed out after",
+  "log": "pin store query timed out after 10000ms",
+  "want_class": "dependency-unavailable",
+  "want_rule": "gha-timeout"
+ },
+ {
+  "name": "dns failure",
+  "log": "curl: (6) Could not resolve host: registry.example.org",
+  "want_class": "dependency-unavailable",
+  "want_rule": "gha-timeout"
+ },
+ {
+  "name": "connect level no response",
+  "log": "upsert FAILED HTTP=000000 (no response)",
+  "want_class": "dependency-unavailable",
+  "want_rule": "gha-timeout"
+ },
+ {
+  "name": "transfer cut mid-stream",
+  "log": "curl: (18) transfer closed with 285000000 bytes remaining to read",
+  "want_class": "dependency-unavailable",
+  "want_rule": "gha-timeout"
+ },
+ {
+  "name": "circuit breaker open",
+  "log": "request refused: circuit breaker OPEN for graph store",
+  "want_class": "dependency-unavailable",
+  "want_rule": "gha-timeout"
+ },
+ {
+  "name": "font fetch failed in build",
+  "log": "next/font: failed to fetch font from the font host",
+  "want_class": "dependency-unavailable",
+  "want_rule": "gha-timeout"
+ },
+ {
+  "name": "self-hosted runner not acquired",
+  "log": "The job was not acquired by Runner of type self-hosted even after multiple attempts",
+  "want_class": "dependency-unavailable",
+  "want_rule": "gha-runner-unavailable"
+ },
+ {
+  "name": "runner lost",
+  "log": "The self-hosted runner: build-3 lost communication with the server. Verify the machine is running and has a healthy network connection.",
+  "want_class": "flaky",
+  "want_rule": "gha-flaky"
+ },
+ {
+  "name": "runner lost, short wording",
+  "log": "runner lost communication mid-job",
+  "want_class": "flaky",
+  "want_rule": "gha-runner-lost"
+ },
+ {
+  "name": "cancelled by newer run",
+  "log": "Canceling since a higher priority waiting request for 'deploy-main' exists",
+  "want_class": "flaky",
+  "want_rule": "gha-cancelled"
+ },
+ {
+  "name": "all jobs cancelled",
+  "log": "All jobs were cancelled",
+  "want_class": "flaky",
+  "want_rule": "gha-cancelled"
+ },
+ {
+  "name": "npm audit gate",
+  "log": "# npm audit report\nfoo  <1.2.3\nSeverity: high\nfoo - GHSA-abcd-efgh-ijkl\n2 high severity vulnerabilities",
+  "want_class": "real-defect",
+  "want_rule": "gha-advisory-gate"
+ },
+ {
+  "name": "cargo deny advisory",
+  "log": "error[vulnerability]: Uncontrolled resource consumption\n  ID: RUSTSEC-2026-0001",
+  "want_class": "real-defect",
+  "want_rule": "gha-advisory-gate"
+ },
+ {
+  "name": "token lacks scope",
+  "log": "RequestError: Resource not accessible by integration",
+  "want_class": "real-defect",
+  "want_rule": "gha-credential"
+ },
+ {
+  "name": "clone without access",
+  "log": "fatal: repository 'https://github.com/example/private.git/' not found\nremote: Repository not found.",
+  "want_class": "real-defect",
+  "want_rule": "gha-credential"
+ },
+ {
+  "name": "input over size limit",
+  "log": "GraphQL: Body is too long (maximum is 65536 characters) (createPullRequest)",
+  "want_class": "real-defect",
+  "want_rule": "gha-input-limit"
+ },
+ {
+  "name": "embedding input limit",
+  "log": "HTTP 400: INPUT_TOKEN_LIMIT_EXCEEDED: input has 11200 tokens, limit 8194",
+  "want_class": "real-defect",
+  "want_rule": "gha-input-limit"
+ },
+ {
+  "name": "missing module",
+  "log": "Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'shared-lib' imported from /work/src/index.js",
+  "want_class": "real-defect",
+  "want_rule": "gha-build-defect"
+ },
+ {
+  "name": "type error",
+  "log": "src/app.ts(41,7): error TS2322: Type 'string' is not assignable to type 'number'.",
+  "want_class": "real-defect",
+  "want_rule": "gha-build-defect"
+ },
+ {
+  "name": "pep 668",
+  "log": "error: externally-managed-environment\n\u00d7 This environment is externally managed",
+  "want_class": "real-defect",
+  "want_rule": "gha-build-defect"
+ },
+ {
+  "name": "invalid workflow file",
+  "log": "Invalid workflow file: .github/workflows/ci.yml#L12 You have an error in your yaml syntax",
+  "want_class": "real-defect",
+  "want_rule": "gha-build-defect"
+ },
+ {
+  "name": "clone without access, quoted url",
+  "log": "fatal: repository 'https://github.com/example/private/' not found\nThe process '/usr/bin/git' failed with exit code 128",
+  "want_class": "real-defect",
+  "want_rule": "gha-credential"
+ },
+ {
+  "name": "audit step summary",
+  "log": "2 high/critical advisory(ies) found\nvuln_count=2",
+  "want_class": "real-defect",
+  "want_rule": "gha-advisory-gate"
+ },
+ {
+  "name": "go test failure",
+  "log": "--- FAIL: TestShip (0.01s)\nFAIL\n",
+  "want_class": "real-defect",
+  "want_rule": "gha-real-defect"
+ },
+ {
+  "name": "bare 403 stays unknown",
+  "log": "request failed: HTTP 403",
+  "want_class": "unknown",
+  "want_rule": ""
+ },
+ {
+  "name": "bare exit code stays unknown",
+  "log": "Error: Process completed with exit code 1.",
+  "want_class": "unknown",
+  "want_rule": ""
+ },
+ {
+  "name": "custom alarm text stays unknown",
+  "log": "probe reports UNKNOWN: could not read the audited channel",
+  "want_class": "unknown",
+  "want_rule": ""
+ },
+ {
+  "name": "rate limit wins over 5xx wording",
+  "log": "HTTP 502 after API rate limit exceeded",
+  "want_class": "resource-exhausted",
+  "want_rule": "gha-rate-limit"
+ },
+ {
+  "name": "budget wall wins over generic refusal",
+  "log": "Service Unavailable: The job was not started because an Actions budget is preventing further use.",
+  "want_class": "resource-exhausted",
+  "want_rule": "gha-budget-wall"
+ }
+]

@@ -1,0 +1,34 @@
+name: Action self-test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  admit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build quelor so the action finds it first on PATH
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin" && go build -o "$RUNNER_TEMP/bin/quelor" ./cmd/quelor
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Use the action itself
+        id: gate
+        uses: ./
+        with:
+          resource: github_api
+          need: '5'
+          optional: 'true'
+      - name: Verdict is a known value
+        env:
+          VERDICT: ${{ steps.gate.outputs.verdict }}
+          REMAINING: ${{ steps.gate.outputs.remaining }}
+        run: |
+          echo "verdict=$VERDICT remaining=$REMAINING"
+          case "$VERDICT" in admit|defer|degraded) ;; *) echo "unexpected verdict" >&2; exit 1;; esac

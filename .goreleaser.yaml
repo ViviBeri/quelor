@@ -1,0 +1,43 @@
+version: 2
+project_name: quelor
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - id: quelor
+    main: ./cmd/quelor
+    binary: quelor
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags: ["-s -w -X github.com/coherera/quelor/pkg/version.Version={{.Version}} -X github.com/coherera/quelor/pkg/version.Commit={{.Commit}}"]
+  - id: quelord
+    main: ./cmd/quelord
+    binary: quelord
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags: ["-s -w -X github.com/coherera/quelor/pkg/version.Version={{.Version}} -X github.com/coherera/quelor/pkg/version.Commit={{.Commit}}"]
+archives:
+  - id: quelor
+    ids: [quelor]
+    name_template: "quelor_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files: [LICENSE, NOTICE, README.md]
+  - id: quelord
+    ids: [quelord]
+    name_template: "quelord_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files: [LICENSE, NOTICE, README.md]
+checksum:
+  name_template: checksums.txt
+changelog:
+  sort: asc
+release:
+  draft: true

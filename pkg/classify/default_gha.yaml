@@ -1,0 +1,83 @@
+# Ordered GitHub Actions ruleset. First match wins.
+# A rule id is the stable sub-reason of its class: consumers that need finer
+# handling than the five classes (a long backoff for a spend wall, no retry for a
+# cancelled run) key on RuleID. The five OutcomeClass values are unchanged.
+id: gha-default
+default: unknown
+rules:
+  - id: gha-rate-limit
+    class: resource-exhausted
+    http_status: [429]
+    log_regex: '(?i)(API rate limit exceeded|secondary rate limit|rate limit (hit|reached)|abuse detection|HTTP 429|Too Many Requests)'
+    note: GitHub API primary or secondary rate limit, including abuse detection.
+  - id: gha-dependency
+    class: dependency-unavailable
+    http_status: [502, 503, 504]
+    timed_out: true
+    log_regex: '(?i)(503 Service Unavailable|502 Bad Gateway|504 Gateway Time-?out|connection (timed out|refused|reset by peer)|i/o timeout|context deadline exceeded|ETIMEDOUT|ECONNRESET|ECONNREFUSED|TLS handshake timeout|dial tcp .*: (connect|i/o))'
+    note: Upstream unavailable, or the run timed out reaching a dependency.
+  - id: gha-flaky
+    class: flaky
+    log_regex: '(?i)(runner has received a shutdown signal|lost communication with the server|hosted runner .* encountered an error|The operation was canceled|No space left on device on runner)'
+    note: Hosted runner infrastructure failure.
+  - id: gha-rate-limit-text
+    class: resource-exhausted
+    log_regex: '(?i)(rate limit exceeded|HTTP[ =:/]*429\b|status[ =:(]+429\b|Retry-After: \d+)'
+    note: Rate-limit wording the first rule does not cover (installation limit, bare 429 in a client log).
+  - id: gha-budget-wall
+    class: resource-exhausted
+    log_regex: '(?i)(job was not started because .{0,80}(budget|spending limit|payments have failed)|spending limit needs to be increased|budget is preventing)'
+    note: The job was refused before step 1 by an account spend cap. Back off for hours or days, not seconds; retrying cannot help until the cap lifts.
+  - id: gha-quota
+    class: resource-exhausted
+    log_regex: '(?i)(artifact storage quota|storage quota (has been )?(hit|exceeded)|quota (has been )?exceeded|No space left on device)'
+    note: Artifact storage quota or disk exhausted. Recovers on a quota recalculation or a clean workspace, not on an immediate retry.
+  - id: gha-wall-clock
+    class: resource-exhausted
+    log_regex: '(?i)(exceeded the maximum execution time|job has exceeded the (max|maximum) (execution )?time|Process completed with exit code 124\b|the (job|run|step) (has )?timed out)'
+    note: The job or a step hit its wall-clock cap. Retrying the same unit reproduces it; the unit needs a larger allowance or less work.
+  - id: gha-oom
+    class: resource-exhausted
+    exit_codes: [137]
+    log_regex: '(?i)(JavaScript heap out of memory|FATAL ERROR: .{0,60}(heap|allocation failed)|Out of memory: Killed process|OOMKilled|java\.lang\.OutOfMemoryError)'
+    note: Process killed for memory. Retry only with a larger memory allowance.
+  - id: gha-upstream-5xx
+    class: dependency-unavailable
+    log_regex: '(?i)(HTTP( Error)?[ :/]*5(00|02|03|04)\b|status[ :=(]+5(00|02|03|04)\b|Internal Server Error|Bad Gateway|Service Unavailable|Gateway Time-?out|upstream (error|connect error|request timeout))'
+    note: An upstream service answered with a server error.
+  - id: gha-timeout
+    class: dependency-unavailable
+    log_regex: '(?i)(TimeoutError|timed out after \d+|read timed out|operation timed out|ESOCKETTIMEDOUT|ERR_SOCKET_TIMEOUT|EAI_AGAIN|Temporary failure in name resolution|Could not resolve host|getaddrinfo (ENOTFOUND|EAI_AGAIN)|curl: \((6|7|18|28|52|56)\)|curl exit (6|7|18|28|52|56)\b|HTTP[ =]0{3,6}\b|failed to fetch|fetch failed|circuit breaker (is )?open)'
+    note: A call to a dependency timed out, could not connect, or hit an open circuit breaker.
+  - id: gha-runner-unavailable
+    class: dependency-unavailable
+    log_regex: '(?i)(job was not acquired by Runner of type|No runner matching the specified labels|Waiting for a runner to pick up this job)'
+    note: No runner picked the job up. The queue or the pool is short; a later attempt can land.
+  - id: gha-runner-lost
+    class: flaky
+    log_regex: '(?i)(lost communication|runner .{0,40}(disconnected|went offline))'
+    note: The runner dropped mid-job. A fresh runner usually succeeds.
+  - id: gha-cancelled
+    class: flaky
+    log_regex: '(?i)(all jobs (were|have been) cancell?ed|canceling since a higher priority waiting request|the run was cancell?ed by|operation was cancell?ed)'
+    note: Cancelled by a newer run (concurrency group) or by a person. Not a defect and not worth a blind retry when a newer run of the same work exists.
+  - id: gha-advisory-gate
+    class: real-defect
+    log_regex: '(GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}|RUSTSEC-\d{4}-\d{4}|(?i:\d+ (high|critical)( severity)? vulnerabilit)|(?i:npm audit)|(?i:advisor(y|ies)\)? found)|vuln_count=[1-9]|(?i:cargo deny))'
+    note: A dependency-advisory gate reddened the job. The advisory database moved, not the network; retrying cannot clear it.
+  - id: gha-credential
+    class: real-defect
+    log_regex: '(?i)(Resource not accessible by integration|Bad credentials|Permission denied \(publickey\)|Repository not found|repository ''[^'']*'' not found|requires authentication|Authentication failed|insufficient (permissions|scope)|token .{0,30}(expired|revoked)|HTTP 401\b)'
+    note: The credential is missing, expired or lacks scope. Surface to whoever holds the credential; retrying cannot help.
+  - id: gha-input-limit
+    class: real-defect
+    log_regex: '(?i)(INPUT_TOKEN_LIMIT_EXCEEDED|body is too long|Argument list too long|ENOBUFS|payload too large|HTTP 413)'
+    note: The input is over a size limit. Deterministic for the same input.
+  - id: gha-real-defect
+    class: real-defect
+    log_regex: '(?m)(^--- FAIL|^FAIL\s|panic:|AssertionError|Traceback \(most recent call last\)|error\[E\d+\]|SyntaxError|^npm ERR! code ELIFECYCLE|compilation failed|undefined: |cannot find symbol)'
+    note: Signature of a defect in the unit under test.
+  - id: gha-build-defect
+    class: real-defect
+    log_regex: '(?i)(ModuleNotFoundError|ERR_MODULE_NOT_FOUND|error TS\d+:|command not found|externally-managed-environment|Invalid workflow file|syntax error (near|at|in)|Tests +\d+ failed|\d+ failed, \d+ passed)'
+    note: Build, lint, type, test or workflow-file error in the checked-out code.
