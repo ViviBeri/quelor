@@ -8,6 +8,8 @@ builds:
     main: ./cmd/quelor
     binary: quelor
     env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    mod_timestamp: "{{ .CommitTimestamp }}"
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
     ldflags: ["-s -w -X github.com/coherera/quelor/pkg/version.Version={{.Version}} -X github.com/coherera/quelor/pkg/version.Commit={{.Commit}}"]
@@ -15,6 +17,8 @@ builds:
     main: ./cmd/quelord
     binary: quelord
     env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    mod_timestamp: "{{ .CommitTimestamp }}"
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
     ldflags: ["-s -w -X github.com/coherera/quelor/pkg/version.Version={{.Version}} -X github.com/coherera/quelor/pkg/version.Commit={{.Commit}}"]
@@ -40,4 +44,4 @@ checksum:
 changelog:
   sort: asc
 release:
-  draft: true
+  draft: false

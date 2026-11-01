@@ -63,7 +63,7 @@ runs:
         if [ "$ok" != 1 ] || { [ ! -x "$dest/quelor" ] && [ ! -x "$dest/quelor.exe" ]; }; then
           echo "release binary unavailable; falling back to go install" >&2
           if ! command -v go >/dev/null 2>&1; then echo "go toolchain not found for fallback" >&2; exit 1; fi
-          ref="$QUELOR_VERSION"; [ "$ref" = latest ] && ref=latest
+          ref="$QUELOR_VERSION"  # "latest" is a valid go install version
           GOBIN="$dest" go install "github.com/coherera/quelor/cmd/quelor@${ref}"
         fi
         echo "$dest" >> "$GITHUB_PATH"

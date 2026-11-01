@@ -16,6 +16,9 @@ The latest minor release receives security fixes while Quelor is pre-1.0.
 
 * `quelord` authenticates holders with a shared or per-holder token. Run it
   behind TLS; treat tokens as secrets and never commit them.
+* `GET /healthz` and `GET /metrics` are unauthenticated. `/healthz` reports
+  the version string; `/metrics` reports counters and gauges. Bind `quelord`
+  to a trusted interface or restrict both paths at your proxy.
 * The decision trace may contain envelope contents. Protect trace files (they
   are created with mode 0600).
 * Quelor never holds your downstream credentials. The GitHub Action reads
