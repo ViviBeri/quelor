@@ -174,6 +174,10 @@ type SettleResult struct {
 	Delta     map[string]int64 `json:"delta"` // declared - consumed
 	Duplicate bool             `json:"duplicate"`
 	Class     OutcomeClass     `json:"class,omitempty"`
+	// RuleID names why Class was chosen: a classifier rule id, "success" for
+	// a clean outcome, or "superseded" when a newer generation replaced the
+	// run. Empty when no outcome was classified or the ruleset default applied.
+	RuleID string `json:"rule_id,omitempty"`
 }
 
 // LeaseAPI is the engine surface conformance tests drive.

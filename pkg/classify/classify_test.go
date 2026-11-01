@@ -69,8 +69,8 @@ func TestDefaultShape(t *testing.T) {
 			t.Fatalf("rule %s changed:\n got %s %q\nwant %s %q", w.id, r.Class, r.LogRegex, w.class, w.re)
 		}
 	}
-	if rs.Rules[1].TimedOut == nil || !*rs.Rules[1].TimedOut {
-		t.Fatal("gha-dependency timed_out is not true")
+	if rs.Rules[1].TimedOut != nil {
+		t.Fatal("gha-dependency must not match on TimedOut alone; gha-wall-clock owns it")
 	}
 	if len(rs.Rules[1].HTTPStatus) != 3 || rs.Rules[1].HTTPStatus[0] != 502 || rs.Rules[1].HTTPStatus[1] != 503 || rs.Rules[1].HTTPStatus[2] != 504 {
 		t.Fatalf("dependency statuses %+v", rs.Rules[1].HTTPStatus)
@@ -140,9 +140,9 @@ func TestClassifyDefault(t *testing.T) {
 		{"503 status", oc(1, 503, "", false), Result{Failed: true, Class: dep, RuleID: gdep}},
 		{"502 status", oc(0, 502, "", false), Result{Failed: true, Class: dep, RuleID: gdep}},
 		{"504 status", oc(7, 504, "--- FAIL: TestX\n", false), Result{Failed: true, Class: dep, RuleID: gdep}},
-		{"timeout flag", oc(1, 0, "", true), Result{Failed: true, Class: dep, RuleID: gdep}},
-		{"timeout exit 0", oc(0, 200, "", true), Result{Failed: true, Class: dep, RuleID: gdep}},
-		{"timeout masks fail", oc(1, 0, "--- FAIL: TestAdd (0.01s)\n", true), Result{Failed: true, Class: dep, RuleID: gdep}},
+		{"timeout flag", oc(1, 0, "", true), Result{Failed: true, Class: quelor.ResourceExhausted, RuleID: "gha-wall-clock"}},
+		{"timeout exit 0", oc(0, 200, "", true), Result{Failed: true, Class: quelor.ResourceExhausted, RuleID: "gha-wall-clock"}},
+		{"timeout masks fail", oc(1, 0, "--- FAIL: TestAdd (0.01s)\n", true), Result{Failed: true, Class: quelor.ResourceExhausted, RuleID: "gha-wall-clock"}},
 		{"503 text", oc(1, 0, "503 Service Unavailable", false), Result{Failed: true, Class: dep, RuleID: gdep}},
 		{"503 text lower", oc(1, 0, "503 service unavailable", false), Result{Failed: true, Class: dep, RuleID: gdep}},
 		{"502 text", oc(1, 0, "502 Bad Gateway", false), Result{Failed: true, Class: dep, RuleID: gdep}},
@@ -595,4 +595,24 @@ func mustParse(t *testing.T, y string) *Ruleset {
 		t.Fatalf("parse: %v", err)
 	}
 	return rs
+}
+
+// PROVES-RED: before the fix gha-dependency carried timed_out: true and preceded
+// gha-wall-clock, so every TimedOut outcome classed as dependency-unavailable.
+func TestTimedOutWithoutDependencyEvidenceIsWallClock(t *testing.T) {
+	rs := Default()
+	wall := Result{Failed: true, Class: quelor.ResourceExhausted, RuleID: "gha-wall-clock"}
+	if got := rs.Classify(oc(1, 0, "step output only", true)); got != wall {
+		t.Fatalf("bare timeout: %+v", got)
+	}
+	if got := rs.Classify(oc(1, 0, "", true)); got != wall {
+		t.Fatalf("empty-log timeout: %+v", got)
+	}
+	dep := Result{Failed: true, Class: quelor.DependencyUnavailable, RuleID: "gha-dependency"}
+	if got := rs.Classify(oc(1, 0, "dial tcp 10.0.0.1:443: i/o timeout", true)); got != dep {
+		t.Fatalf("timeout with dependency evidence: %+v", got)
+	}
+	if got := rs.Classify(oc(1, 503, "", true)); got != dep {
+		t.Fatalf("timeout with 503: %+v", got)
+	}
 }

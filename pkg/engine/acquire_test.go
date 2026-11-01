@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coherera/quelor/pkg/classify"
 	"github.com/coherera/quelor/pkg/quelor"
 	"github.com/coherera/quelor/pkg/resource"
 	"github.com/coherera/quelor/pkg/trace"
@@ -194,4 +195,66 @@ func (s *traceSink) settleFor(leaseID string) (trace.Record, bool) {
 		}
 	}
 	return trace.Record{}, false
+}
+
+// PROVES-RED: a superseded lease is superseded regardless of whether the settle
+// carries an Outcome. Before the fix the branch ran only when Outcome != nil, so
+// a settle without an outcome was indistinguishable from a success.
+func TestSettleSupersededWithoutOutcome(t *testing.T) {
+	clk := baseClock()
+	e, tw, _ := newTestEngine(t, clk, []resource.Manifest{
+		manifest("slots", resource.ModelLease, 8, resource.UnknownHoldCursor),
+	}, nil, nil)
+	sink := &traceSink{tw}
+	mk := func(unit string, gen int64) quelor.Envelope {
+		env := work(unit, "h1", map[string]int64{"slots": 1}, "")
+		env.CoalesceKey, env.Generation = "pr-9", gen
+		return env
+	}
+	old := acquireLease(t, e, mk("run-1", 1), "")
+	live := acquireLease(t, e, mk("run-2", 2), "")
+
+	res, err := e.SettleLease(context.Background(), quelor.SettleRequest{LeaseID: old.ID, HolderID: "h1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RuleID != classify.RuleSuperseded || res.Class != "" {
+		t.Fatalf("superseded no-outcome settle: rule %q class %q", res.RuleID, res.Class)
+	}
+	rec, ok := sink.settleFor(old.ID)
+	if !ok || len(rec.RuleIDs) != 1 || rec.RuleIDs[0] != classify.RuleSuperseded {
+		t.Fatalf("trace rule ids %+v", rec.RuleIDs)
+	}
+
+	// A live lease settled without an outcome carries no rule id.
+	res, err = e.SettleLease(context.Background(), quelor.SettleRequest{LeaseID: live.ID, HolderID: "h1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RuleID != "" {
+		t.Fatalf("live no-outcome settle rule %q", res.RuleID)
+	}
+}
+
+func TestSettleResultRuleID(t *testing.T) {
+	clk := baseClock()
+	e, _, _ := newTestEngine(t, clk, []resource.Manifest{
+		manifest("slots", resource.ModelLease, 8, resource.UnknownHoldCursor),
+	}, nil, nil)
+	l := acquireLease(t, e, work("u", "h1", map[string]int64{"slots": 1}, ""), "")
+	res, err := e.SettleLease(context.Background(), quelor.SettleRequest{LeaseID: l.ID, HolderID: "h1", Outcome: &quelor.ExecutionOutcome{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RuleID != classify.RuleSuccess {
+		t.Fatalf("success rule id %q", res.RuleID)
+	}
+	l = acquireLease(t, e, work("u2", "h1", map[string]int64{"slots": 1}, ""), "")
+	res, err = e.SettleLease(context.Background(), quelor.SettleRequest{LeaseID: l.ID, HolderID: "h1", Outcome: &quelor.ExecutionOutcome{ExitCode: 1, HTTPStatus: 429}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RuleID != "gha-rate-limit" || res.Class != quelor.ResourceExhausted {
+		t.Fatalf("429 settle %q %q", res.RuleID, res.Class)
+	}
 }

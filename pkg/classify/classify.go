@@ -14,6 +14,20 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Synthesized rule ids. They are reported in Result.RuleID and
+// quelor.SettleResult.RuleID but belong to no ruleset. They are stable across
+// rulesets and versions in the 0.x line.
+const (
+	// RuleSuccess marks a clean outcome (exit 0, HTTP below 400, not timed out).
+	RuleSuccess = "success"
+	// RuleSuperseded marks a run replaced by a newer generation. It is set by
+	// the engine, never by Classify.
+	RuleSuperseded = "superseded"
+	// RuleDefault is the empty id reported when no rule matched and the
+	// ruleset Default class applied.
+	RuleDefault = ""
+)
+
 // Rule is one ordered classifier entry. A rule matches when any specified
 // condition matches. Empty exit_codes, empty http_status, an empty log_regex,
 // and a nil TimedOut are unspecified and are not conditions.
@@ -39,7 +53,10 @@ type Ruleset struct {
 }
 
 // Result is the classification of one execution outcome.
-// RuleID is "success" for a clean outcome and empty when Default is used.
+// RuleID is RuleSuccess for a clean outcome and RuleDefault (empty) when the
+// ruleset default is used; otherwise it is the id of the matching rule. A rule
+// id is stable for a given ruleset id: renaming or re-meaning one requires a
+// new ruleset id. RuleSuperseded is set by the engine, not by Classify.
 type Result struct {
 	Failed bool
 	Class  quelor.OutcomeClass
@@ -54,10 +71,12 @@ type Result struct {
 // break the contract that a green exit ignores log text (see the "success
 // ignores panic log" cases) and the default ruleset has no refusal signature,
 // so the fix needs a signal ExecutionOutcome does not carry yet; deferred to
-// the v0.2 API review rather than adding a public field now.
+// the v0.2 API review rather than adding a public field now. Until then the
+// gha-budget-wall rule matches only a non-zero exit, a 4xx/5xx status or a
+// timeout; an exit-0 refusal is unreachable.
 func (rs *Ruleset) Classify(o quelor.ExecutionOutcome) Result {
 	if o.ExitCode == 0 && o.HTTPStatus < 400 && !o.TimedOut {
-		return Result{RuleID: "success"}
+		return Result{RuleID: RuleSuccess}
 	}
 	for i := range rs.Rules {
 		if rs.Rules[i].matches(o) {

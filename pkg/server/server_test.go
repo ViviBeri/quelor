@@ -704,3 +704,54 @@ func decodeBody[T any](t *testing.T, rr *httptest.ResponseRecorder) T {
 
 // Keep bytes import used if a future table wants raw bodies; the limit test uses strings.
 var _ = bytes.MinRead
+
+// PROVES-RED: over HTTP a superseded run must differ from a success. Before
+// SettleResult carried rule_id, both bodies omitted the field.
+func TestSettleJSONRuleIDSuperseded(t *testing.T) {
+	h := handlerFor(t, server.Config{
+		Decider:   server.DeciderConfig{Mode: "reference"},
+		Resources: mustManifests(t, manifestSlots4),
+	})
+	acquire := func(unit string, gen int64) quelor.Lease {
+		t.Helper()
+		rr := doReq(h, http.MethodPost, "/v1/lease/acquire", "", acquireBody(quelor.Envelope{
+			UnitID: unit, TenantID: "ten", HolderID: "h1",
+			Demands:     map[string]int64{"slots": 1},
+			Priority:    quelor.PriorityChange,
+			CoalesceKey: "pr-1", Generation: gen,
+		}))
+		ar := decodeBody[quelor.AcquireResult](t, rr)
+		if rr.Code != http.StatusOK || ar.Lease == nil {
+			t.Fatalf("acquire %d %s", rr.Code, rr.Body.String())
+		}
+		return *ar.Lease
+	}
+	settleRaw := func(l quelor.Lease, out *quelor.ExecutionOutcome) map[string]any {
+		t.Helper()
+		rr := doReq(h, http.MethodPost, "/v1/lease/settle", "", mustJSON(quelor.SettleRequest{
+			LeaseID: l.ID, HolderID: "h1", Outcome: out,
+		}))
+		if rr.Code != http.StatusOK {
+			t.Fatalf("settle %d %s", rr.Code, rr.Body.String())
+		}
+		var m map[string]any
+		if err := json.Unmarshal(rr.Body.Bytes(), &m); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	old := acquire("run-1", 1)
+	live := acquire("run-2", 2)
+
+	sup := settleRaw(old, nil)
+	if sup["rule_id"] != "superseded" {
+		t.Fatalf("superseded body %v", sup)
+	}
+	if _, has := sup["class"]; has {
+		t.Fatalf("superseded body carries class: %v", sup)
+	}
+	ok := settleRaw(live, &quelor.ExecutionOutcome{})
+	if ok["rule_id"] != "success" {
+		t.Fatalf("success body %v", ok)
+	}
+}

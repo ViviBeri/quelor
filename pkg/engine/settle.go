@@ -9,6 +9,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/coherera/quelor/pkg/classify"
 	"github.com/coherera/quelor/pkg/decider"
 	"github.com/coherera/quelor/pkg/quelor"
 	"github.com/coherera/quelor/pkg/resource"
@@ -419,14 +420,16 @@ func (e *Engine) settleActiveLocked(rec *leaseRec, req quelor.SettleRequest, now
 		if cr.Failed && cr.Class == quelor.DependencyUnavailable {
 			probeOK = false
 		}
-		if rec.superseded {
-			// A run replaced by a newer generation was cancelled by policy,
-			// not by a defect. Report it as neither a failure nor a class so
-			// a retry budget reading Class or the trace does not count it.
-			done.result.Class = ""
-			done.failed = false
-			done.ruleID = "superseded"
-		}
+	}
+	if rec.superseded {
+		// A run replaced by a newer generation was cancelled by policy,
+		// not by a defect, whether or not an outcome or classifier is
+		// present. Report it as neither a failure nor a class so a retry
+		// budget reading Class or the trace does not count it, and mark it
+		// with RuleID so it differs from a success over the wire.
+		done.result.Class = ""
+		done.failed = false
+		done.ruleID = classify.RuleSuperseded
 	}
 	if rec.probe != nil {
 		pids := make([]string, 0, len(rec.probe))
@@ -447,6 +450,7 @@ func (e *Engine) settleActiveLocked(rec *leaseRec, req quelor.SettleRequest, now
 
 	result := e.releaseLocked(rec, req.Consumed, now, "settle")
 	result.Class = done.result.Class
+	result.RuleID = done.ruleID
 	done.result = result
 	done.evs = evs
 	return done
@@ -638,9 +642,9 @@ func (e *Engine) writeSettleTrace(rec *leaseRec, done settleExec, req quelor.Set
 			LogExcerpt: settleExcerpt(req.Outcome.Log),
 			Failed:     done.failed,
 		}
-		if done.ruleID != "" {
-			ruleIDs = []string{done.ruleID}
-		}
+	}
+	if done.ruleID != "" {
+		ruleIDs = []string{done.ruleID}
 	}
 	e.writeTrace(trace.Record{
 		Op:            trace.OpSettle,
