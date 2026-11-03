@@ -381,3 +381,13 @@ func runWithOutput(t *testing.T, args []string) (code int, stdout, stderr string
 	}()
 	return run(args), "", ""
 }
+
+func TestHTTPServerTimeouts(t *testing.T) {
+	srv := newHTTPServer(http.NewServeMux())
+	if srv.ReadHeaderTimeout <= 0 || srv.ReadTimeout <= 0 || srv.WriteTimeout <= 0 || srv.IdleTimeout <= 0 {
+		t.Fatalf("server timeouts must all be set: %+v", srv)
+	}
+	if srv.ReadTimeout > 30*time.Second || srv.WriteTimeout > 30*time.Second || srv.IdleTimeout > 2*time.Minute {
+		t.Fatalf("server timeouts too long: read=%v write=%v idle=%v", srv.ReadTimeout, srv.WriteTimeout, srv.IdleTimeout)
+	}
+}

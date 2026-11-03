@@ -86,10 +86,7 @@ func run(args []string) (code int) {
 		fmt.Fprintf(os.Stderr, "quelord: listen: %v\n", err)
 		return 1
 	}
-	srv := &http.Server{
-		Handler:           server.New(eng, server.Options{}),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
+	srv := newHTTPServer(server.New(eng, server.Options{}))
 	serveDone := make(chan error, 1)
 	go func() {
 		serveDone <- srv.Serve(ln)
@@ -117,6 +114,18 @@ func run(args []string) (code int) {
 			return 1
 		}
 		return 0
+	}
+}
+
+// newHTTPServer returns the daemon's HTTP server with read, write and idle
+// limits so a slow or idle client cannot hold a connection open forever.
+func newHTTPServer(h http.Handler) *http.Server {
+	return &http.Server{
+		Handler:           h,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 }
 
