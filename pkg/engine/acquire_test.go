@@ -258,3 +258,37 @@ func TestSettleResultRuleID(t *testing.T) {
 		t.Fatalf("429 settle %q %q", res.RuleID, res.Class)
 	}
 }
+
+func TestAuthenticateRefusesUnlistedHolderWhenHolderTokensSet(t *testing.T) {
+	clk := baseClock()
+	e, _, _ := newTestEngine(t, clk, []resource.Manifest{
+		manifest("cpu", resource.ModelLease, 20, resource.UnknownHoldCursor),
+	}, nil, func(cfg *Config) {
+		cfg.SharedToken = "shared"
+		cfg.HolderTokens = map[string]string{"alice": "aaa"}
+	})
+	cases := []struct {
+		holder, token string
+		want          bool
+	}{
+		{"alice", "aaa", true},
+		{"alice", "shared", false},
+		{"mallory", "shared", false},
+		{"", "shared", false},
+	}
+	for _, c := range cases {
+		if got := e.Authenticate(c.holder, c.token); got != c.want {
+			t.Errorf("Authenticate(%q,%q)=%v want %v", c.holder, c.token, got, c.want)
+		}
+	}
+}
+
+func TestAuthenticateSharedTokenOnly(t *testing.T) {
+	clk := baseClock()
+	e, _, _ := newTestEngine(t, clk, []resource.Manifest{
+		manifest("cpu", resource.ModelLease, 20, resource.UnknownHoldCursor),
+	}, nil, func(cfg *Config) { cfg.SharedToken = "shared" })
+	if !e.Authenticate("anyone", "shared") || e.Authenticate("anyone", "nope") || e.Authenticate("anyone", "") {
+		t.Fatal("shared token handling changed")
+	}
+}

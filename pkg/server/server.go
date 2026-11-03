@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -18,10 +19,16 @@ import (
 // maxBody is the accepted request body size.
 const maxBody = 1 << 20
 
+// maxRetryAfter is the longest retry delay an observation may report.
+const maxRetryAfter = 24 * time.Hour
+
 // Backend is the engine surface the daemon calls.
 type Backend interface {
 	quelor.LeaseAPI
 	Observe(ctx context.Context, o quelor.Observation) error
+	// Authenticate reports whether token is valid for holder. A backend that
+	// cannot tell must return false: observe is denied by default.
+	Authenticate(holder, token string) bool
 	Stats() engine.Stats
 }
 
@@ -94,7 +101,11 @@ func (s *srv) settle(w http.ResponseWriter, r *http.Request) {
 
 // observeBody accepts Observation plus an optional seconds override.
 // RetryAfter on the wire is nanoseconds; retry_after_seconds wins when present.
+// The caller authenticates like any other holder: holder_id in the body and
+// the bearer token in the header. Retry delays above 24 hours, negative values
+// and non-finite values are rejected with 400.
 type observeBody struct {
+	HolderID          string   `json:"holder_id,omitempty"`
 	Resource          string   `json:"resource"`
 	HTTPStatus        int      `json:"http_status"`
 	RetryAfter        int64    `json:"retry_after,omitempty"`
@@ -106,13 +117,30 @@ func (s *srv) observe(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &body) {
 		return
 	}
+	if !s.be.Authenticate(body.HolderID, bearerToken(r)) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": engine.ErrUnauthenticated.Error()})
+		return
+	}
+	retry := time.Duration(0)
+	switch {
+	case body.RetryAfterSeconds != nil:
+		secs := *body.RetryAfterSeconds
+		if math.IsNaN(secs) || secs < 0 || secs > maxRetryAfter.Seconds() {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "retry_after_seconds out of range"})
+			return
+		}
+		retry = time.Duration(secs * float64(time.Second))
+	default:
+		if body.RetryAfter < 0 || body.RetryAfter > int64(maxRetryAfter) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "retry_after out of range"})
+			return
+		}
+		retry = time.Duration(body.RetryAfter)
+	}
 	obs := quelor.Observation{
 		Resource:   body.Resource,
 		HTTPStatus: body.HTTPStatus,
-		RetryAfter: time.Duration(body.RetryAfter),
-	}
-	if body.RetryAfterSeconds != nil {
-		obs.RetryAfter = time.Duration(*body.RetryAfterSeconds * float64(time.Second))
+		RetryAfter: retry,
 	}
 	if err := s.be.Observe(r.Context(), obs); err != nil {
 		writeAPIError(w, err)

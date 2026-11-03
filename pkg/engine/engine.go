@@ -212,13 +212,22 @@ func (e *Engine) countVerdict(k quelor.VerdictKind) {
 	}
 }
 
+// Authenticate reports whether token is valid for holder. With no tokens
+// configured authentication is off and it returns true, as for the lease calls.
+func (e *Engine) Authenticate(holder, token string) bool { return e.authenticate(holder, token) }
+
 // authenticate checks a holder token. With no tokens configured auth is off.
 func (e *Engine) authenticate(holder, token string) bool {
 	if e.cfg.SharedToken == "" && len(e.cfg.HolderTokens) == 0 {
 		return true
 	}
 	want := e.cfg.SharedToken
-	if t, ok := e.cfg.HolderTokens[holder]; ok {
+	if len(e.cfg.HolderTokens) > 0 {
+		// Per-holder tokens are configured: only listed holders may act.
+		t, ok := e.cfg.HolderTokens[holder]
+		if !ok {
+			return false
+		}
 		want = t
 	}
 	if want == "" {

@@ -564,6 +564,94 @@ func TestObserveAIMDMetric(t *testing.T) {
 	}
 }
 
+func TestObserveRequiresAuth(t *testing.T) {
+	h := handlerFor(t, server.Config{
+		Decider:     server.DeciderConfig{Mode: "reference"},
+		Resources:   mustManifests(t, manifestSlots4),
+		SharedToken: "secret",
+	})
+	const body = `{"resource":"slots","http_status":429,"retry_after_seconds":315360000}`
+	for _, tok := range []string{"", "wrong"} {
+		rr := doReq(h, http.MethodPost, "/v1/observe", tok, body)
+		if rr.Code != http.StatusUnauthorized {
+			t.Fatalf("token %q: status %d body %s, want 401", tok, rr.Code, rr.Body.String())
+		}
+	}
+	// The rejected calls must not have touched resource state.
+	m := doReq(h, http.MethodGet, "/metrics", "", "").Body.String()
+	if !strings.Contains(m, "quelor_aimd_decrease_total 0\n") {
+		t.Fatalf("unauthenticated observe changed state:\n%s", m)
+	}
+	ac := doReq(h, http.MethodPost, "/v1/lease/acquire", "secret", acquireBody(quelor.Envelope{
+		UnitID: "u", TenantID: "ten", HolderID: "h", Demands: map[string]int64{"slots": 1}, Priority: quelor.PriorityChange,
+	}))
+	if got := decodeBody[quelor.AcquireResult](t, ac).Verdict.Kind; got != quelor.Admit {
+		t.Fatalf("acquire after rejected observe: %s", ac.Body.String())
+	}
+	if rr := doReq(h, http.MethodPost, "/v1/observe", "secret", `{"resource":"slots","http_status":200}`); rr.Code != http.StatusNoContent {
+		t.Fatalf("authenticated observe: %d %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestObserveHolderTokens(t *testing.T) {
+	h := handlerFor(t, server.Config{
+		Decider:      server.DeciderConfig{Mode: "reference"},
+		Resources:    mustManifests(t, manifestSlots4),
+		HolderTokens: map[string]string{"alice": "aaa", "bob": "bbb"},
+	})
+	tests := []struct {
+		name  string
+		token string
+		body  string
+		want  int
+	}{
+		{"holder omitted", "aaa", `{"resource":"slots","http_status":200}`, 401},
+		{"token of another holder", "bbb", `{"holder_id":"alice","resource":"slots","http_status":200}`, 401},
+		{"unknown holder", "aaa", `{"holder_id":"mallory","resource":"slots","http_status":200}`, 401},
+		{"matching holder", "aaa", `{"holder_id":"alice","resource":"slots","http_status":200}`, 204},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if rr := doReq(h, http.MethodPost, "/v1/observe", tt.token, tt.body); rr.Code != tt.want {
+				t.Fatalf("status %d body %s, want %d", rr.Code, rr.Body.String(), tt.want)
+			}
+		})
+	}
+}
+
+func TestObserveDeniesByDefault(t *testing.T) {
+	fb := &fakeBackend{denyAuth: true, observeFn: func(quelor.Observation) error {
+		t.Fatal("observe reached the backend without authentication")
+		return nil
+	}}
+	rr := doReq(server.New(fb, server.Options{}), http.MethodPost, "/v1/observe", "", `{"resource":"api","http_status":503}`)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("status %d", rr.Code)
+	}
+}
+
+func TestObserveRetryAfterBounds(t *testing.T) {
+	var got quelor.Observation
+	fb := &fakeBackend{observeFn: func(o quelor.Observation) error { got = o; return nil }}
+	h := server.New(fb, server.Options{})
+	bad := []string{
+		`{"resource":"api","http_status":429,"retry_after_seconds":1e300}`,
+		`{"resource":"api","http_status":429,"retry_after_seconds":-1}`,
+		`{"resource":"api","http_status":429,"retry_after":-5}`,
+		`{"resource":"api","http_status":429,"retry_after":9223372036854775807}`,
+		`{"resource":"api","http_status":429,"retry_after_seconds":100000}`,
+	}
+	for _, b := range bad {
+		if rr := doReq(h, http.MethodPost, "/v1/observe", "", b); rr.Code != http.StatusBadRequest {
+			t.Fatalf("%s: status %d, want 400", b, rr.Code)
+		}
+	}
+	ok := doReq(h, http.MethodPost, "/v1/observe", "", `{"resource":"api","http_status":429,"retry_after_seconds":86400}`)
+	if ok.Code != http.StatusNoContent || got.RetryAfter != 24*time.Hour {
+		t.Fatalf("max allowed: %d %v", ok.Code, got.RetryAfter)
+	}
+}
+
 func TestHealthzOnEngine(t *testing.T) {
 	h := handlerFor(t, server.Config{Decider: server.DeciderConfig{Mode: "reference"}})
 	rr := doReq(h, http.MethodGet, "/healthz", "", "")
@@ -578,6 +666,7 @@ type fakeBackend struct {
 	renewFn   func(quelor.RenewRequest) (quelor.RenewResult, error)
 	settleFn  func(quelor.SettleRequest) (quelor.SettleResult, error)
 	observeFn func(quelor.Observation) error
+	denyAuth  bool
 	stats     engine.Stats
 }
 
@@ -608,6 +697,8 @@ func (f *fakeBackend) Observe(_ context.Context, o quelor.Observation) error {
 	}
 	return f.observeFn(o)
 }
+
+func (f *fakeBackend) Authenticate(_, _ string) bool { return !f.denyAuth }
 
 func (f *fakeBackend) Stats() engine.Stats { return f.stats }
 

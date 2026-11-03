@@ -77,6 +77,10 @@ capacity per observation, up to the declared capacity (`pkg/engine/state.go`). A
 `Retry-After` blocks the resource until it elapses. Circuit resources use a failure
 counter instead (see the resource-classes page).
 
+`POST /v1/observe` authenticates like the lease calls: send the bearer token, and
+send `holder_id` in the body when `holder_tokens` is configured. `retry_after_seconds`
+must be between 0 and 86400 (24 hours); other values return 400.
+
 ## Timers
 
 `Engine.Advance(now)` applies due timers: resource windows, lease expiry, ticket expiry

@@ -97,7 +97,7 @@ quelord -config examples/quelord.yaml
 
 [examples/quelord.yaml](examples/quelord.yaml) is a minimal valid config (two resources, listening on 127.0.0.1:8080); `curl 127.0.0.1:8080/healthz` confirms it is up.
 
-Endpoints: `POST /v1/lease/acquire`, `/v1/lease/renew`, `/v1/lease/settle`, `/v1/observe`, `GET /healthz`, `GET /metrics`. Resource classes are declared as YAML manifests ([docs/resource-classes.md](docs/resource-classes.md)).
+Endpoints: `POST /v1/lease/acquire`, `/v1/lease/renew`, `/v1/lease/settle`, `/v1/observe` (same token as the lease calls), `GET /healthz`, `GET /metrics`. Resource classes are declared as YAML manifests ([docs/resource-classes.md](docs/resource-classes.md)).
 
 ## Status
 
