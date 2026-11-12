@@ -809,5 +809,5 @@ func settleTraceMode(m decider.Mode) trace.Mode {
 	if m == "" {
 		m = decider.ModeEnforce
 	}
-	return trace.Mode(m)
+	return m
 }
