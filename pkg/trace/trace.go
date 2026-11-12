@@ -58,11 +58,7 @@ const (
 )
 
 // Provenance is decider-defined and opaque to the engine.
-type Provenance struct {
-	Step          string `json:"step,omitempty"`
-	Tier          string `json:"tier,omitempty"`
-	EvidenceClass string `json:"evidence_class,omitempty"`
-}
+type Provenance = decision.Provenance
 
 // Outcome is the optional settle-time classification summary.
 type Outcome struct {

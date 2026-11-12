@@ -59,11 +59,7 @@ type Request struct {
 }
 
 // Provenance is decider-defined and opaque to the engine.
-type Provenance struct {
-	Step          string `json:"step,omitempty"`
-	Tier          string `json:"tier,omitempty"`
-	EvidenceClass string `json:"evidence_class,omitempty"`
-}
+type Provenance = decision.Provenance
 
 // Response is a Decider's answer.
 type Response struct {
