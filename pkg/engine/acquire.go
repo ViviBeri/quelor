@@ -498,7 +498,7 @@ func (e *Engine) writeAcquireTrace(env quelor.Envelope, o acquireOut) {
 		RulesetHash:   o.resp.RulesetHash,
 		DeciderID:     o.resp.DeciderID,
 		RuleIDs:       append([]string{}, o.resp.RuleIDs...),
-		Provenance:    trace.Provenance{Step: o.resp.Provenance.Step, Tier: o.resp.Provenance.Tier, EvidenceClass: o.resp.Provenance.EvidenceClass},
+		Provenance:    o.resp.Provenance,
 		DeciderStatus: status,
 		Mode:          mode,
 		Stamps:        append([]string{}, v.Stamps...),

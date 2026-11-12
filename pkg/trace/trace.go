@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coherera/quelor/pkg/quelor"
+	"github.com/coherera/quelor/pkg/decision"\n\t"github.com/coherera/quelor/pkg/quelor"
 )
 
 // SchemaVersion is the schema_version value written on every trace record.
@@ -25,7 +25,7 @@ const SchemaVersion = "trace.v1"
 const maxLineSize = 4*1024*1024 + 1024
 
 // Op is the engine operation a trace record describes.
-type Op string
+type Op = decision.Op
 
 const (
 	OpAcquire Op = "acquire"

@@ -5,14 +5,14 @@ package decider
 import (
 	"context"
 
-	"github.com/coherera/quelor/pkg/quelor"
+	"github.com/coherera/quelor/pkg/decision"\n\t"github.com/coherera/quelor/pkg/quelor"
 )
 
 // APIVersion is sent on every call.
 const APIVersion = "1"
 
 // Op names the engine operation that triggered the decision.
-type Op string
+type Op = decision.Op
 
 const (
 	OpAcquire Op = "acquire"
