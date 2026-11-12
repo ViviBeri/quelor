@@ -5,7 +5,8 @@ package decider
 import (
 	"context"
 
-	"github.com/coherera/quelor/pkg/decision"\n\t"github.com/coherera/quelor/pkg/quelor"
+	"github.com/coherera/quelor/pkg/decision"
+	"github.com/coherera/quelor/pkg/quelor"
 )
 
 // APIVersion is sent on every call.
@@ -30,12 +31,12 @@ const (
 )
 
 // Mode is how a ruleset's verdicts are applied by the engine.
-type Mode string
+type Mode = decision.Mode
 
 const (
-	ModeLogOnly Mode = "log-only" // verdict recorded, never applied
-	ModeAdvise  Mode = "advise"   // verdict recorded as advisory, never applied
-	ModeEnforce Mode = "enforce"  // verdict applied
+	ModeLogOnly = decision.ModeLogOnly // verdict recorded, never applied
+	ModeAdvise  = decision.ModeAdvise   // verdict recorded as advisory, never applied
+	ModeEnforce = decision.ModeEnforce  // verdict applied
 )
 
 // CallMeta carries observability context.

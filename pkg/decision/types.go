@@ -19,5 +19,5 @@ const (
 type Provenance struct {
 	Step          string `json:"step,omitempty"`
 	Tier          string `json:"tier,omitempty"`
-	EvidenceClass string `json:"evidence_class,omitempty"
+	EvidenceClass string `json:"evidence_class,omitempty"`
 }

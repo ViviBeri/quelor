@@ -14,7 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coherera/quelor/pkg/decision"\n\t"github.com/coherera/quelor/pkg/quelor"
+	"github.com/coherera/quelor/pkg/decision"
+	"github.com/coherera/quelor/pkg/quelor"
 )
 
 // SchemaVersion is the schema_version value written on every trace record.
@@ -48,12 +49,12 @@ const (
 )
 
 // Mode is how a decider verdict was applied. Empty means the field was unset.
-type Mode string
+type Mode = decision.Mode
 
 const (
-	ModeLogOnly Mode = "log-only"
-	ModeAdvise  Mode = "advise"
-	ModeEnforce Mode = "enforce"
+	ModeLogOnly = decision.ModeLogOnly
+	ModeAdvise  = decision.ModeAdvise
+	ModeEnforce = decision.ModeEnforce
 )
 
 // Provenance is decider-defined and opaque to the engine.
