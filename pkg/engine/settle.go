@@ -652,7 +652,7 @@ func (e *Engine) writeRenewTrace(rec *leaseRec, lease quelor.Lease, v quelor.Ver
 		RulesetHash:   resp.RulesetHash,
 		DeciderID:     resp.DeciderID,
 		RuleIDs:       append([]string{}, resp.RuleIDs...),
-		Provenance:    trace.Provenance{Step: resp.Provenance.Step, Tier: resp.Provenance.Tier, EvidenceClass: resp.Provenance.EvidenceClass},
+		Provenance:    resp.Provenance,
 		DeciderStatus: settleTraceStatus(resp.Status),
 		Mode:          settleTraceMode(resp.Mode),
 		Stamps:        append([]string{}, vv.Stamps...),
@@ -846,5 +846,5 @@ func settleTraceMode(m decider.Mode) trace.Mode {
 	if m == "" {
 		m = decider.ModeEnforce
 	}
-	return trace.Mode(m)
+	return m
 }

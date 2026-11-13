@@ -5,6 +5,7 @@ package decider
 import (
 	"context"
 
+	"github.com/coherera/quelor/pkg/decision"
 	"github.com/coherera/quelor/pkg/quelor"
 )
 
@@ -12,7 +13,7 @@ import (
 const APIVersion = "1"
 
 // Op names the engine operation that triggered the decision.
-type Op string
+type Op = decision.Op
 
 const (
 	OpAcquire Op = "acquire"
@@ -30,12 +31,12 @@ const (
 )
 
 // Mode is how a ruleset's verdicts are applied by the engine.
-type Mode string
+type Mode = decision.Mode
 
 const (
-	ModeLogOnly Mode = "log-only" // verdict recorded, never applied
-	ModeAdvise  Mode = "advise"   // verdict recorded as advisory, never applied
-	ModeEnforce Mode = "enforce"  // verdict applied
+	ModeLogOnly = decision.ModeLogOnly // verdict recorded, never applied
+	ModeAdvise  = decision.ModeAdvise   // verdict recorded as advisory, never applied
+	ModeEnforce = decision.ModeEnforce  // verdict applied
 )
 
 // CallMeta carries observability context.
@@ -58,11 +59,7 @@ type Request struct {
 }
 
 // Provenance is decider-defined and opaque to the engine.
-type Provenance struct {
-	Step          string `json:"step,omitempty"`
-	Tier          string `json:"tier,omitempty"`
-	EvidenceClass string `json:"evidence_class,omitempty"`
-}
+type Provenance = decision.Provenance
 
 // Response is a Decider's answer.
 type Response struct {

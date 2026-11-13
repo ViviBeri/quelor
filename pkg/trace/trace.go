@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coherera/quelor/pkg/decision"
 	"github.com/coherera/quelor/pkg/quelor"
 )
 
@@ -25,7 +26,7 @@ const SchemaVersion = "trace.v1"
 const maxLineSize = 4*1024*1024 + 1024
 
 // Op is the engine operation a trace record describes.
-type Op string
+type Op = decision.Op
 
 const (
 	OpAcquire Op = "acquire"
@@ -48,20 +49,16 @@ const (
 )
 
 // Mode is how a decider verdict was applied. Empty means the field was unset.
-type Mode string
+type Mode = decision.Mode
 
 const (
-	ModeLogOnly Mode = "log-only"
-	ModeAdvise  Mode = "advise"
-	ModeEnforce Mode = "enforce"
+	ModeLogOnly = decision.ModeLogOnly
+	ModeAdvise  = decision.ModeAdvise
+	ModeEnforce = decision.ModeEnforce
 )
 
 // Provenance is decider-defined and opaque to the engine.
-type Provenance struct {
-	Step          string `json:"step,omitempty"`
-	Tier          string `json:"tier,omitempty"`
-	EvidenceClass string `json:"evidence_class,omitempty"`
-}
+type Provenance = decision.Provenance
 
 // Outcome is the optional settle-time classification summary.
 type Outcome struct {
