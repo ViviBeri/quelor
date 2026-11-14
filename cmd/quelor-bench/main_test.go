@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"testing"
 
 	"github.com/coherera/quelor/bench"
@@ -32,7 +33,7 @@ func TestRunJSONOutput(t *testing.T) {
 
 	var got bench.Report
 	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
-		t.Fatalf("JSON output is invalid: %v\n%s", err, out.String())
+		t.Fatalf("JSON output is invalid: %v\\n%s", err, out.String())
 	}
 	if got.Throughput != want.Throughput || len(got.Scenarios) != 1 || got.Scenarios[0].Name != "sample" {
 		t.Fatalf("JSON output = %+v, want %+v", got, want)
@@ -68,5 +69,19 @@ func TestRunRejectsUnknownFlag(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected an error for unknown flag")
+	}
+}
+
+func TestRunHelpDoesNotRunBenchmark(t *testing.T) {
+	called := false
+	err := runWith([]string{"-h"}, &bytes.Buffer{}, func(bench.Options) bench.Report {
+		called = true
+		return bench.Report{}
+	})
+	if err != flag.ErrHelp {
+		t.Fatalf("runWith() error = %v, want %v", err, flag.ErrHelp)
+	}
+	if called {
+		t.Fatal("benchmark runner should not be called for help")
 	}
 }
