@@ -33,7 +33,7 @@ func TestRunJSONOutput(t *testing.T) {
 
 	var got bench.Report
 	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
-		t.Fatalf("JSON output is invalid: %v\\n%s", err, out.String())
+		t.Fatalf("JSON output is invalid: %v\n%s", err, out.String())
 	}
 	if got.Throughput != want.Throughput || len(got.Scenarios) != 1 || got.Scenarios[0].Name != "sample" {
 		t.Fatalf("JSON output = %+v, want %+v", got, want)
