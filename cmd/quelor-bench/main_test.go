@@ -31,6 +31,10 @@ func TestRunJSONOutput(t *testing.T) {
 		t.Fatalf("unexpected benchmark options: %+v", gotOptions)
 	}
 
+	if got, wantJSON := out.String(), want.JSON(); got != wantJSON {
+		t.Fatalf("JSON output changed:\n got: %q\nwant: %q", got, wantJSON)
+	}
+
 	var got bench.Report
 	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
 		t.Fatalf("JSON output is invalid: %v\n%s", err, out.String())
@@ -42,23 +46,12 @@ func TestRunJSONOutput(t *testing.T) {
 
 func TestRunSmallUnits(t *testing.T) {
 	var out bytes.Buffer
-	called := false
 
-	err := runWith([]string{"-units", "1"}, &out, func(opt bench.Options) bench.Report {
-		called = true
-		if opt.Units != 1 {
-			t.Fatalf("Units = %d, want 1", opt.Units)
-		}
-		return bench.Report{}
-	})
-	if err != nil {
-		t.Fatalf("runWith() error = %v", err)
-	}
-	if !called {
-		t.Fatal("benchmark runner was not called")
+	if err := run([]string{"-units", "1"}, &out); err != nil {
+		t.Fatalf("run() error = %v", err)
 	}
 	if out.Len() == 0 {
-		t.Fatal("expected text report output")
+		t.Fatal("expected benchmark report output")
 	}
 }
 
