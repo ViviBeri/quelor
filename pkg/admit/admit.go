@@ -168,7 +168,15 @@ func (c *Client) Read(ctx context.Context, resource string) (Reading, error) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
-		return out, errors.New(scrub(fmt.Sprintf("github rate_limit: http %d", resp.StatusCode), token))
+		message := fmt.Sprintf("github rate_limit: http %d", resp.StatusCode)
+		if retryAfter := strings.TrimSpace(resp.Header.Get("Retry-After")); retryAfter != "" {
+			if seconds, err := strconv.ParseUint(retryAfter, 10, 64); err == nil {
+				message += fmt.Sprintf(" (retry after %d seconds)", seconds)
+			} else {
+				message += fmt.Sprintf(" (retry after %s)", retryAfter)
+			}
+		}
+		return out, errors.New(scrub(message, token))
 	}
 	var payload ghPayload
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&payload); err != nil {

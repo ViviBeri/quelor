@@ -291,6 +291,52 @@ func TestClientReadErrors(t *testing.T) {
 		}
 	})
 
+	t.Run("non-200 reports retry-after", func(t *testing.T) {
+		tests := []struct {
+			name       string
+			status     int
+			header     string
+			wantError  string
+			wantReason string
+		}{
+			{name: "429 with seconds", status: http.StatusTooManyRequests, header: "60", wantError: "github rate_limit: http 429 (retry after 60 seconds)", wantReason: "retry after 60 seconds"},
+			{name: "429 with HTTP date", status: http.StatusTooManyRequests, header: "Wed, 21 Oct 2015 07:28:00 GMT", wantError: "github rate_limit: http 429 (retry after Wed, 21 Oct 2015 07:28:00 GMT)", wantReason: "retry after Wed, 21 Oct 2015 07:28:00 GMT"},
+			{name: "429 without header", status: http.StatusTooManyRequests, wantError: "github rate_limit: http 429"},
+			{name: "403 with seconds", status: http.StatusForbidden, header: "60", wantError: "github rate_limit: http 403 (retry after 60 seconds)", wantReason: "retry after 60 seconds"},
+			{name: "403 without header", status: http.StatusForbidden, wantError: "github rate_limit: http 403"},
+			{name: "503 with seconds", status: http.StatusServiceUnavailable, header: "120", wantError: "github rate_limit: http 503 (retry after 120 seconds)", wantReason: "retry after 120 seconds"},
+			{name: "503 without header", status: http.StatusServiceUnavailable, wantError: "github rate_limit: http 503"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if tt.header != "" {
+						w.Header().Set("Retry-After", tt.header)
+					}
+					w.WriteHeader(tt.status)
+				}))
+				t.Cleanup(srv.Close)
+				c := &Client{BaseURL: srv.URL, Token: token, HTTP: srv.Client()}
+				_, err := c.Read(context.Background(), "github_api")
+				if err == nil {
+					t.Fatal("expected error")
+				}
+
+				if got := err.Error(); got != tt.wantError {
+					t.Fatalf("error %q, want %q", got, tt.wantError)
+				}
+
+				result := Decide(Reading{Resource: "github_api"}, err, 1, false)
+				if result.Verdict != verdictDegraded || result.Exit != exitDegraded {
+					t.Fatalf("verdict/exit = %s/%d, want %s/%d", result.Verdict, result.Exit, verdictDegraded, exitDegraded)
+				}
+				if tt.wantReason != "" && !strings.Contains(result.Reason, tt.wantReason) {
+					t.Fatalf("degraded reason %q missing %q", result.Reason, tt.wantReason)
+				}
+			})
+		}
+	})
+
 	t.Run("malformed json", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
