@@ -82,7 +82,7 @@ the existing lease expiry unchanged.
 ### Settle
 
 After the work completes, report the actual consumption. This example reports
-800 cents consumed from the original 1,000-cent reservation:
+800 cents consumed from the total 1,500-cent reservation (the original 1,000 cents plus the 500-cent renewal):
 
 ```sh
 curl --fail-with-body --silent --show-error \
@@ -107,6 +107,7 @@ with `duplicate: true` and does not release capacity a second time.
   the calling application.
 - `window_bucket` refunds unused reservation only if settlement occurs in the
   same window in which the lease was acquired.
-- `hard_budget` refunds unused reservation without refilling its declared
-  lifetime capacity.
+- `hard_budget` refunds the unused portion of the reservation. Consumed
+  amounts remain charged against the lifetime budget; refunds do not increase
+  the resource's declared capacity.
 - Do not put provider API keys, prompts, or customer data in this example.
