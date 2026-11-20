@@ -225,7 +225,7 @@
  },
  {
   "name": "pep 668",
-  "log": "error: externally-managed-environment\n× This environment is externally managed",
+  "log": "error: externally-managed-environment\n\u00d7 This environment is externally managed",
   "want_class": "real-defect",
   "want_rule": "gha-build-defect"
  },
