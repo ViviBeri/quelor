@@ -101,6 +101,85 @@ curl --fail-with-body --silent --show-error \
 Settlement is idempotent. A repeated settlement returns the stored result
 with `duplicate: true` and does not release capacity a second time.
 
+## Verified daemon output
+
+The CI smoke test started the configured `quelord` process and sent the
+three requests over HTTP. The following are the actual JSON response bodies
+captured by the [CI run](https://github.com/ViviBeri/quelor/actions/runs/44687247661)
+on 2026-11-20. The lease ID and timestamps are generated per run.
+
+Acquire (successful admission):
+
+```json
+{
+  "verdict": { "kind": "ADMIT" },
+  "lease": {
+    "id": "8c43cee78ea0c9a81261a4260af814e2",
+    "unit_id": "model-review-ci",
+    "tenant_id": "ci",
+    "holder_id": "ci-smoke",
+    "declared": {
+      "model_credits_monthly": 1000,
+      "model_spend_lifetime": 1000
+    },
+    "granted_at": "2026-11-20T06:22:01.749013784Z",
+    "expires_at": "2026-11-20T06:22:31.749013784Z",
+    "decision_ref": "04c5ba3ac9d0c85784f244e4",
+    "renewals": 0
+  },
+  "decision_ref": "04c5ba3ac9d0c85784f244e4"
+}
+```
+
+Renew (additional 500 cents admitted):
+
+```json
+{
+  "verdict": { "kind": "ADMIT" },
+  "lease": {
+    "id": "8c43cee78ea0c9a81261a4260af814e2",
+    "unit_id": "model-review-ci",
+    "tenant_id": "ci",
+    "holder_id": "ci-smoke",
+    "declared": {
+      "model_credits_monthly": 1500,
+      "model_spend_lifetime": 1500
+    },
+    "granted_at": "2026-11-20T06:22:01.749013784Z",
+    "expires_at": "2026-11-20T06:22:31.764640158Z",
+    "decision_ref": "04c5ba3ac9d0c85784f244e4",
+    "renewals": 1
+  },
+  "decision_ref": "a807f50b99ebc62c57346764"
+}
+```
+
+Settle (800 cents consumed; 700 cents unused):
+
+```json
+{
+  "lease_id": "8c43cee78ea0c9a81261a4260af814e2",
+  "declared": {
+    "model_credits_monthly": 1500,
+    "model_spend_lifetime": 1500
+  },
+  "consumed": {
+    "model_credits_monthly": 800,
+    "model_spend_lifetime": 800
+  },
+  "delta": {
+    "model_credits_monthly": 700,
+    "model_spend_lifetime": 700
+  },
+  "duplicate": false
+}
+```
+
+Repeating the same settlement returned the same accounting values with
+`"duplicate": true`, confirming the idempotent path. The CI smoke test asserts
+the admission verdicts, the 1,500/800/700 accounting values, and the duplicate
+flag.
+
 ## Accounting notes
 
 - Amounts are integer cents. Convert provider usage and pricing into cents in
