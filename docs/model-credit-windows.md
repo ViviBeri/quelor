@@ -104,9 +104,7 @@ with `duplicate: true` and does not release capacity a second time.
 ## Verified daemon output
 
 The CI smoke test started the configured `quelord` process and sent the
-three requests over HTTP. The following are the actual JSON response bodies
-captured by the [CI run](https://github.com/ViviBeri/quelor/actions/runs/44687247661)
-on 2026-11-20. The lease ID and timestamps are generated per run.
+three requests over HTTP. The following are representative JSON response bodies captured by the daemon smoke test. The lease ID and timestamps are generated per run.
 
 Acquire (successful admission):
 
