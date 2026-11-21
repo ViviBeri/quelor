@@ -62,6 +62,25 @@ jobs:
           jq . <<<"$renew"
           jq -e '.verdict.kind == "ADMIT"' <<<"$renew" >/dev/null
 
+          # A reservation beyond the remaining allowance must be refused
+          # without extending the active lease.
+          refused_renew_body=$(jq -n --arg id "$lease_id" '{lease_id:$id,holder_id:"ci-smoke",delta:{model_credits_monthly:50000,model_spend_lifetime:50000}}')
+          refused_renew=$(curl --fail-with-body --silent --show-error \\
+            -X POST http://127.0.0.1:8080/v1/lease/renew \\
+            -H 'Content-Type: application/json' -d "$refused_renew_body")
+          echo "REFUSED_RENEW_RESPONSE:"
+          jq . <<<"$refused_renew"
+          expected_expiry=$(jq -r '.lease.expires_at' <<<"$renew")
+          jq -e --arg expiry "$expected_expiry" '.verdict.kind == "DEFER" and .lease.expires_at == $expiry' <<<"$refused_renew" >/dev/null
+
+          # A different holder must not be able to settle this lease.
+          wrong_holder_body=$(jq -n --arg id "$lease_id" '{lease_id:$id,holder_id:"wrong-holder",consumed:{model_credits_monthly:0,model_spend_lifetime:0}}')
+          wrong_holder_status=$(curl --silent --show-error --output "$RUNNER_TEMP/wrong-holder.json" --write-out '%{http_code}' \\
+            -X POST http://127.0.0.1:8080/v1/lease/settle \\
+            -H 'Content-Type: application/json' -d "$wrong_holder_body")
+          test "$wrong_holder_status" = "403"
+          jq -e '.error | contains("holder does not own this lease")' "$RUNNER_TEMP/wrong-holder.json" >/dev/null
+
           settle_body=$(jq -n --arg id "$lease_id" '{lease_id:$id,holder_id:"ci-smoke",consumed:{model_credits_monthly:800,model_spend_lifetime:800}}')
           settle=$(curl --fail-with-body --silent --show-error \
             -X POST http://127.0.0.1:8080/v1/lease/settle \
